@@ -1,0 +1,12 @@
+{
+  "presets": [
+    {
+      "name": "OR induction basic",
+      "description": "Basic induction set",
+      "items": [
+        { "product_name": "Propofol 1% 20mL", "quantity": 2 },
+        { "product_name": "Rocuronium 50mg/5mL", "quantity": 1 }
+      ]
+    }
+  ]
+}
