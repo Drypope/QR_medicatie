@@ -22,4 +22,8 @@ def build_payload(items: list[SelectedItem]) -> str:
         return ""
 
     ordered = sorted(normalized, key=lambda i: (i.product_class.lower(), i.product_name.lower(), i.unique_id))
-    return "|".join(f"{item.unique_id}:{item.quantity}" for item in ordered)
+
+    segments: list[str] = []
+    for item in ordered:
+        segments.extend([f"$2037--{item.unique_id}"] * item.quantity)
+    return "".join(segments)
