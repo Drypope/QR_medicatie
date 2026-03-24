@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -35,3 +36,23 @@ def test_sync_presets_resolves_catalog_items(tmp_path: Path):
         assert preset is not None
         assert len(preset.items) == 1
         assert preset.items[0].default_quantity == 2
+
+
+def test_sync_presets_raises_for_unknown_medications(tmp_path: Path):
+    presets_path = tmp_path / "presets.json"
+    presets_path.write_text(json.dumps({
+        "presets": [
+            {
+                "name": "OR bad",
+                "description": "Bad",
+                "items": [{"product_name": "Unknown Med", "quantity": 1}],
+            }
+        ]
+    }))
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        with pytest.raises(ValueError, match="unknown medications"):
+            sync_presets(session, presets_path)

@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -11,12 +14,17 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(app: FastAPI):
+    app.state.startup_error = None
     with SessionLocal() as session:
         try:
             sync_source_files(session)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to sync source files during startup")
+            app.state.startup_error = (
+                "Unable to load source files. Please check catalog.xlsx and presets.json. "
+                f"Details: {exc}"
+            )
     yield
 
 

@@ -9,49 +9,115 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.models import MedicationCatalog
+from app.models import MedicationCatalog, Preset
 from app.services.datamatrix_service import render_data_matrix_png
 from app.services.payload_builder import SelectedItem, build_payload
-from app.services.selection_state import group_selection
+from app.services.selection_service import add_catalog_item, load_preset_selection
+from app.services.selection_state import (
+    decrement_selected_item,
+    delete_selected_item,
+    get_selection,
+    group_selected_by_product_class,
+    increment_selected_item,
+)
+from app.services.startup_sync import sync_source_files
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
 
-@router.get("/", response_class=HTMLResponse)
-def index(request: Request, session: Session = Depends(get_session)):
+def _render_index(request: Request, session: Session) -> HTMLResponse:
     medications = session.scalars(
         select(MedicationCatalog)
         .where(MedicationCatalog.is_active.is_(True))
         .order_by(MedicationCatalog.product_class, MedicationCatalog.sort_order, MedicationCatalog.product_name)
     ).all()
-    selected = request.session.get("selection", [])
+    presets = session.scalars(select(Preset).order_by(Preset.name)).all()
+    selected = get_selection(request.session)
+
+    catalog_by_class: dict[str, list[dict[str, int | str]]] = {}
+    for med in medications:
+        catalog_by_class.setdefault(med.product_class, []).append({"id": med.id, "product_name": med.product_name})
+
+    flash_error = request.session.pop("flash_error", None)
+    flash_success = request.session.pop("flash_success", None)
+
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "medications": medications,
-            "grouped_selection": group_selection(selected),
+            "presets": presets,
+            "catalog_by_class": catalog_by_class,
+            "grouped_selection": group_selected_by_product_class(selected),
             "barcode_b64": request.session.get("barcode_b64"),
             "payload": request.session.get("payload", ""),
+            "flash_error": flash_error,
+            "flash_success": flash_success,
+            "startup_error": getattr(request.app.state, "startup_error", None),
         },
     )
 
 
+@router.get("/", response_class=HTMLResponse)
+def index(request: Request, session: Session = Depends(get_session)):
+    return _render_index(request, session)
+
+
+@router.post("/admin/refresh", response_class=HTMLResponse)
+def admin_refresh(request: Request, session: Session = Depends(get_session)):
+    try:
+        catalog_count, preset_count = sync_source_files(session)
+    except Exception as exc:  # noqa: BLE001
+        request.session["flash_error"] = (
+            "Refresh failed. Please verify catalog.xlsx and presets.json. "
+            f"Details: {exc}"
+        )
+    else:
+        request.session["flash_success"] = f"Refresh complete. Catalog rows: {catalog_count}, presets: {preset_count}."
+        request.app.state.startup_error = None
+    return _render_index(request, session)
+
+
+@router.post("/selection/load-preset", response_class=HTMLResponse)
+def load_preset(request: Request, preset_id: int = Form(...), session: Session = Depends(get_session)):
+    try:
+        load_preset_selection(session, request.session, preset_id)
+    except Exception as exc:  # noqa: BLE001
+        request.session["flash_error"] = f"Unable to load preset. Details: {exc}"
+    return _render_index(request, session)
+
+
+@router.post("/selection/increment", response_class=HTMLResponse)
+def increment_selection(request: Request, catalog_id: int = Form(...), session: Session = Depends(get_session)):
+    increment_selected_item(request.session, catalog_id)
+    return _render_index(request, session)
+
+
+@router.post("/selection/decrement", response_class=HTMLResponse)
+def decrement_selection(request: Request, catalog_id: int = Form(...), session: Session = Depends(get_session)):
+    decrement_selected_item(request.session, catalog_id)
+    return _render_index(request, session)
+
+
+@router.post("/selection/delete", response_class=HTMLResponse)
+def delete_selection(request: Request, catalog_id: int = Form(...), session: Session = Depends(get_session)):
+    delete_selected_item(request.session, catalog_id)
+    return _render_index(request, session)
+
+
+@router.post("/selection/add-item", response_class=HTMLResponse)
+def add_selection_item(request: Request, catalog_id: int = Form(...), session: Session = Depends(get_session)):
+    try:
+        add_catalog_item(session, request.session, catalog_id)
+    except Exception as exc:  # noqa: BLE001
+        request.session["flash_error"] = f"Unable to add medication. Details: {exc}"
+    return _render_index(request, session)
+
+
 @router.post("/generate", response_class=HTMLResponse)
-def generate(request: Request, session: Session = Depends(get_session), item_ids: list[int] = Form(default=[])):
-    meds = session.scalars(select(MedicationCatalog).where(MedicationCatalog.id.in_(item_ids))).all() if item_ids else []
-    selected = [
-        {
-            "id": m.id,
-            "product_class": m.product_class,
-            "product_name": m.product_name,
-            "unique_id": m.unique_id,
-            "quantity": 1,
-        }
-        for m in meds
-    ]
-    request.session["selection"] = selected
+def generate(request: Request, session: Session = Depends(get_session)):
+    selected = get_selection(request.session)
 
     payload = build_payload(
         [
@@ -65,7 +131,11 @@ def generate(request: Request, session: Session = Depends(get_session), item_ids
         ]
     )
     request.session["payload"] = payload
-    request.session["barcode_b64"] = (
-        base64.b64encode(render_data_matrix_png(payload)).decode("ascii") if payload else None
-    )
-    return index(request, session)
+    try:
+        request.session["barcode_b64"] = (
+            base64.b64encode(render_data_matrix_png(payload)).decode("ascii") if payload else None
+        )
+    except Exception as exc:  # noqa: BLE001
+        request.session["flash_error"] = f"Barcode generation failed. Details: {exc}"
+        request.session["barcode_b64"] = None
+    return _render_index(request, session)

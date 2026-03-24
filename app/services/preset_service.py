@@ -22,6 +22,8 @@ def sync_presets(session: Session, presets_path: Path) -> int:
     }
 
     count = 0
+    unknown_medications: list[str] = []
+
     for p in preset_defs:
         name = str(p.get("name", "")).strip()
         if not name:
@@ -40,10 +42,16 @@ def sync_presets(session: Session, presets_path: Path) -> int:
             quantity = int(item.get("quantity", 1))
             catalog = catalog_by_name.get(product_name)
             if catalog is None:
+                unknown_medications.append(f"{name}: {product_name}")
                 continue
             preset.items.append(PresetItem(catalog_id=catalog.id, default_quantity=max(quantity, 1)))
 
         count += 1
+
+    if unknown_medications:
+        session.rollback()
+        unknown_list = ", ".join(sorted(set(unknown_medications)))
+        raise ValueError(f"Presets reference unknown medications: {unknown_list}")
 
     session.commit()
     return count
