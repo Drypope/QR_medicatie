@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>MedMatrix</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section>
+        <h1>Medication selection</h1>
+        <form method="post" action="/generate">
+          {% for med in medications %}
+          <label class="row">
+            <input type="checkbox" name="item_ids" value="{{ med.id }}" />
+            <span>{{ med.product_class }} — {{ med.product_name }}</span>
+          </label>
+          {% endfor %}
+          <button type="submit" class="generate">Generate</button>
+        </form>
+      </section>
+      <section>
+        <h2>Data Matrix</h2>
+        {% if barcode_b64 %}
+        <img alt="Data Matrix" src="data:image/png;base64,{{ barcode_b64 }}" />
+        {% else %}
+        <div class="placeholder">No barcode yet</div>
+        {% endif %}
+        <pre>{{ payload }}</pre>
+      </section>
+    </main>
+  </body>
+</html>
