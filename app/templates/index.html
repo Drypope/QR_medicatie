@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MedMatrix</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">MEDMATRIX <span class="version">v0.1</span></div>
+      <div class="org">Door Bram Van Overmeire</div>
+    </header>
+
+    <main class="layout">
+      <section class="left-panel">
+        {% if startup_error %}<p class="flash flash-error">{{ startup_error }}</p>{% endif %}
+        {% if flash_error %}<p class="flash flash-error">{{ flash_error }}</p>{% endif %}
+        {% if flash_success %}<p class="flash flash-success">{{ flash_success }}</p>{% endif %}
+
+        <div class="toolbar-row">
+          <form method="post" action="/selection/load-preset" class="preset-form-inline">
+            <label for="preset_id">Preset select:</label>
+            <select id="preset_id" name="preset_id">
+              {% for preset in presets %}
+              <option value="{{ preset.id }}">{{ preset.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Load</button>
+          </form>
+
+          <form method="post" action="/admin/refresh">
+            <button type="submit" class="refresh-btn">Refresh</button>
+          </form>
+        </div>
+
+        <div class="toolbar-row add-menu-row">
+          <form method="post" action="/selection/add-item" class="preset-form-inline">
+            <label for="catalog_id">Add medication:</label>
+            <select id="catalog_id" name="catalog_id">
+              {% for med in medications %}
+              <option value="{{ med.id }}">{{ med.product_class }} — {{ med.product_name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Add</button>
+          </form>
+        </div>
+
+        <div class="selection-card">
+          {% if grouped_selection %}
+            {% for product_class, items in grouped_selection.items() %}
+            <article class="class-block">
+              <header class="class-header">
+                <h2>{{ product_class }}</h2>
+                <button
+                  type="button"
+                  class="class-add-btn"
+                  data-class="{{ product_class }}"
+                  data-items='{{ catalog_by_class.get(product_class, []) | tojson }}'
+                  title="Add from class"
+                >
+                  +
+                </button>
+              </header>
+
+              <ul class="selection-list">
+                {% for item in items %}
+                <li class="selection-item">
+                  <span class="med-name">{{ item.product_name }}</span>
+                  <div class="qty-controls">
+                    <form method="post" action="/selection/decrement">
+                      <input type="hidden" name="catalog_id" value="{{ item.id }}" />
+                      <button type="submit" class="small-btn">−</button>
+                    </form>
+                    <span class="quantity">{{ item.quantity }}</span>
+                    <form method="post" action="/selection/increment">
+                      <input type="hidden" name="catalog_id" value="{{ item.id }}" />
+                      <button type="submit" class="small-btn">+</button>
+                    </form>
+                    <form method="post" action="/selection/delete">
+                      <input type="hidden" name="catalog_id" value="{{ item.id }}" />
+                      <button type="submit" class="delete-btn" title="Delete">🗑</button>
+                    </form>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            </article>
+            {% endfor %}
+          {% else %}
+            <p class="empty">No medications selected yet.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="right-panel">
+        <div class="qr-frame">
+          {% if barcode_b64 %}
+          <img alt="Data Matrix" src="data:image/png;base64,{{ barcode_b64 }}" />
+          {% else %}
+          <div class="placeholder">QR-CODE</div>
+          {% endif %}
+        </div>
+
+        <form method="post" action="/generate">
+          <button type="submit" class="generate">GENERATE</button>
+        </form>
+
+        <pre class="payload">{{ payload }}</pre>
+      </section>
+    </main>
+
+    <form id="add-item-form" method="post" action="/selection/add-item" class="hidden">
+      <input type="hidden" name="catalog_id" id="add-item-id" />
+    </form>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
