@@ -17,6 +17,19 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _normalize_unique_id(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    text = str(value).strip()
+    if text.endswith(".0") and text.replace(".", "", 1).isdigit():
+        return text[:-2]
+    return text
+
+
 def sync_catalog(session: Session, catalog_path: Path) -> int:
     if not catalog_path.exists():
         raise FileNotFoundError(f"Catalog file not found: {catalog_path}")
@@ -52,7 +65,7 @@ def sync_catalog(session: Session, catalog_path: Path) -> int:
             continue
         product_name = str(raw[header_to_idx["product_name"]] or "").strip()
         product_class = str(raw[header_to_idx["product_class"]] or "").strip()
-        unique_id = str(raw[header_to_idx["unique_id"]] or "").strip()
+        unique_id = _normalize_unique_id(raw[header_to_idx["unique_id"]])
         if not (product_name and product_class and unique_id):
             continue
 

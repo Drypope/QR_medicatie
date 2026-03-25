@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
     Base.metadata.create_all(bind=engine)
 
     app = FastAPI(title="MedMatrix", lifespan=lifespan)
+    app.state.session_store = {}
     app.add_middleware(SessionMiddleware, secret_key="dev-secret-change-me")
     app.include_router(web_router)
     app.mount("/static", StaticFiles(directory="app/static"), name="static")

@@ -49,3 +49,22 @@ def test_sync_catalog_marks_missing_rows_inactive(tmp_path: Path):
         old = session.scalar(select(MedicationCatalog).where(MedicationCatalog.product_name == "Old Med"))
         assert old is not None
         assert old.is_active is False
+
+
+def test_sync_catalog_normalizes_unique_id_numeric_suffix(tmp_path: Path):
+    catalog = tmp_path / "catalog.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "catalog"
+    ws.append(["product_class", "product_name", "unique_id"])
+    ws.append(["Numeric", "Code Med", 2002612175.0])
+    wb.save(catalog)
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        sync_catalog(session, catalog)
+        row = session.scalar(select(MedicationCatalog).where(MedicationCatalog.product_name == "Code Med"))
+        assert row is not None
+        assert row.unique_id == "2002612175"

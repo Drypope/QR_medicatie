@@ -52,6 +52,18 @@
             <article class="class-block">
               <header class="class-header">
                 <h2>{{ product_class }}</h2>
+                <button type="button" class="class-add-btn" data-toggle-class="{{ loop.index0 }}" title="Add from class">+</button>
+              </header>
+
+              <form method="post" action="/selection/add-item" class="class-add-form hidden" id="class-add-{{ loop.index0 }}">
+                <select name="catalog_id">
+                  {% for med in catalog_by_class.get(product_class, []) %}
+                  <option value="{{ med.id }}">{{ med.product_name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit">Add</button>
+              </form>
+
                 <button
                   type="button"
                   class="class-add-btn"
