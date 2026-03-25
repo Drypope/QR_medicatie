@@ -64,6 +64,17 @@
                 <button type="submit">Add</button>
               </form>
 
+                <button
+                  type="button"
+                  class="class-add-btn"
+                  data-class="{{ product_class }}"
+                  data-items='{{ catalog_by_class.get(product_class, []) | tojson }}'
+                  title="Add from class"
+                >
+                  +
+                </button>
+              </header>
+
               <ul class="selection-list">
                 {% for item in items %}
                 <li class="selection-item">
