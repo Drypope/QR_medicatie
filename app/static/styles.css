@@ -85,6 +85,10 @@ button {
   padding: 0.25rem 0.6rem;
 }
 
+.add-menu-row {
+  margin-bottom: 0.8rem;
+}
+
 .selection-card {
   border: 1px solid #ccd6e6;
   border-radius: 8px;
@@ -146,6 +150,12 @@ button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
+}
+
+.class-add-btn {
+  border: 2px solid #20334f;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .quantity {

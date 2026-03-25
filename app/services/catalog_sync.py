@@ -45,6 +45,8 @@ def sync_catalog(session: Session, catalog_path: Path) -> int:
     }
 
     upsert_count = 0
+    seen_product_names: set[str] = set()
+
     for raw in rows[1:]:
         if raw is None:
             continue
@@ -53,6 +55,8 @@ def sync_catalog(session: Session, catalog_path: Path) -> int:
         unique_id = str(raw[header_to_idx["unique_id"]] or "").strip()
         if not (product_name and product_class and unique_id):
             continue
+
+        seen_product_names.add(product_name)
 
         sort_order = int(raw[header_to_idx.get("sort_order", -1)] or 0) if "sort_order" in header_to_idx else 0
         is_active_cell = raw[header_to_idx.get("is_active", -1)] if "is_active" in header_to_idx else True
@@ -71,6 +75,11 @@ def sync_catalog(session: Session, catalog_path: Path) -> int:
         existing.source_hash = source_hash
         existing.last_synced_at = synced_at
         upsert_count += 1
+
+    for existing in existing_by_name.values():
+        if existing.product_name not in seen_product_names:
+            existing.is_active = False
+            existing.last_synced_at = synced_at
 
     session.commit()
     return upsert_count

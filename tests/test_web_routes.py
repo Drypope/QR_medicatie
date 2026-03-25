@@ -47,7 +47,7 @@ def test_index_route_renders_page(datamatrix_stub):
         response = client.get("/")
 
     assert response.status_code == 200
-    assert "MEDICATIETOOL" in response.text
+    assert "MEDMATRIX" in response.text
 
 
 def test_selection_routes_and_generate_use_session_selection(datamatrix_stub):

@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8765
     local_data_dir: Path = Path.home() / ".medmatrix"
-    shared_source_dir: Path = Path(".")
+    shared_source_dir: Path = Path(__file__).resolve().parents[1]
     catalog_file: str = "catalog.xlsx"
     presets_file: str = "presets.json"
     database_url: str | None = None

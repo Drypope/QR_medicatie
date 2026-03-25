@@ -31,3 +31,21 @@ def test_sync_catalog_imports_rows(tmp_path: Path):
         assert count == 2
         rows = session.scalars(select(MedicationCatalog).order_by(MedicationCatalog.product_name)).all()
         assert [r.unique_id for r in rows] == ["P001", "R001"]
+
+
+def test_sync_catalog_marks_missing_rows_inactive(tmp_path: Path):
+    catalog = tmp_path / "catalog.xlsx"
+    _write_catalog(catalog)
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        session.add(MedicationCatalog(product_class="Legacy", product_name="Old Med", unique_id="OLD", is_active=True))
+        session.commit()
+
+        sync_catalog(session, catalog)
+
+        old = session.scalar(select(MedicationCatalog).where(MedicationCatalog.product_name == "Old Med"))
+        assert old is not None
+        assert old.is_active is False

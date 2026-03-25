@@ -8,8 +8,8 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand">MEDICATIETOOL <span class="version">v0.1</span></div>
-      <div class="org">Door B.V. Ovezonice</div>
+      <div class="brand">MEDMATRIX <span class="version">v0.1</span></div>
+      <div class="org">Door Bram Van Overmeire</div>
     </header>
 
     <main class="layout">
@@ -34,6 +34,18 @@
           </form>
         </div>
 
+        <div class="toolbar-row add-menu-row">
+          <form method="post" action="/selection/add-item" class="preset-form-inline">
+            <label for="catalog_id">Add medication:</label>
+            <select id="catalog_id" name="catalog_id">
+              {% for med in medications %}
+              <option value="{{ med.id }}">{{ med.product_class }} — {{ med.product_name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit">Add</button>
+          </form>
+        </div>
+
         <div class="selection-card">
           {% if grouped_selection %}
             {% for product_class, items in grouped_selection.items() %}
@@ -47,7 +59,7 @@
                   data-items='{{ catalog_by_class.get(product_class, []) | tojson }}'
                   title="Add from class"
                 >
-                  ⊕
+                  +
                 </button>
               </header>
 
